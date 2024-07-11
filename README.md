@@ -14,5 +14,7 @@ Once you installed the pipeline and the tasks, generate some data (as described 
 
 Deploy the `chatbot-ui` using the deployment yaml files in the `chatbot` namespace. You need to create the service account and the service account bindings first before you can create the deployment. Once deployed, add a route to the new application.
 
+Then, go to your deployment, as the scaling is set to `0` and fill in the environment parameters. You can use either a direct LLM inference point (deployed in a vLLM container), or Chat-GPT4-turbo, as an alternative when the VLLM flag is set to false. In this case you need to supply your OPENAI_API_KEY as an environment variable. Once you filled in the required parameters, spin up a pod.
+
 You can now access the route in your browser and chat with your application!
 ![chatbot-ui](./images/chatbot-ui.png)
