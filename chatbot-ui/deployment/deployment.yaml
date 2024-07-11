@@ -1,0 +1,119 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: gradio-aiops-bot
+  labels:
+    app: gradio-aiops-bot
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: gradio-aiops-bot
+  template:
+    metadata:
+      labels:
+        app: gradio-aiops-bot
+    spec:
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      affinity: {}
+      terminationGracePeriodSeconds: 120
+      securityContext: {}
+      serviceAccountName: custom-service-account
+      containers:
+        - resources:
+            limits:
+              cpu: "2"
+              memory: 4Gi
+            requests:
+              cpu: "1"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /queue/status
+              port: http
+              scheme: HTTP
+            timeoutSeconds: 5
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+          terminationMessagePath: /dev/termination-log
+          name: server
+          livenessProbe:
+            httpGet:
+              path: /queue/status
+              port: http
+              scheme: HTTP
+            timeoutSeconds: 8
+            periodSeconds: 100
+            successThreshold: 1
+            failureThreshold: 3
+          env:
+            - name: ENABLE_SELF_SIGNED_CERTS
+              value: "True"
+            - name: APP_TITLE
+              value: "AIOps Chat!"
+            - name: SHOW_TITLE_IMAGE
+              value: "True"
+            - name: INFERENCE_SERVER_URL
+              value: "https://your_inference_endpoint"
+            - name: MODEL_NAME
+              value: "/mnt/models/"
+            - name: MAX_TOKENS
+              value: "1024"
+            - name: TOP_P
+              value: "0.95"
+            - name: TEMPERATURE
+              value: "0.01"
+            - name: PRESENCE_PENALTY
+              value: "1.03"
+            - name: MILVUS_HOST
+              value: "your_milvus_host"
+            - name: MILVUS_PORT
+              value: "19530"
+            - name: MILVUS_USERNAME
+              value: "your_milvus_username"
+            - name: MILVUS_PASSWORD
+              value: "your_milvus_password"
+            - name: USE_VLLM
+              value: "False"
+            - name: ML_SERVICE_ENDPOINT
+              value: "your_mlasp_endpoint"
+            - name: OPENAI_API_KEY
+              value: "your_openai_api_key"
+            - name: LANGCHAIN_API_KEY
+              value: "your_langchain_api_key"
+            - name: LANGCHAIN_TRACING_V2
+              value: "True"
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: http
+              containerPort: 7860
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          startupProbe:
+            httpGet:
+              path: /queue/status
+              port: http
+              scheme: HTTP
+            timeoutSeconds: 1
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 24
+          terminationMessagePolicy: File
+          image: "quay.io/avitui/aiops-chatbot:v1.0"
+      dnsPolicy: ClusterFirst
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 1
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600

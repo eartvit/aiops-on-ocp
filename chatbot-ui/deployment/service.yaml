@@ -1,0 +1,20 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: gradio-aiops-bot
+  labels:
+    app: gradio-aiops-bot
+spec:
+  clusterIP: None
+  ipFamilies:
+    - IPv4
+  ports:
+    - name: http
+      protocol: TCP
+      port: 7860
+      targetPort: http
+  type: ClusterIP
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  selector:
+    app: gradio-aiops-bot
