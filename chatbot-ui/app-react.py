@@ -1,8 +1,9 @@
 import os
-from langchain import hub
+#from langchain import hub
 
 from langchain_openai import ChatOpenAI
 from langchain_community.llms import VLLMOpenAI
+from langchain.prompts import PromptTemplate
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
@@ -101,7 +102,30 @@ tools = [tool_operators_list, tool_namespace_pods_summary, tool_namespace_svc_su
 
 
 # Setup LLM agent
-prompt_react = hub.pull("hwchase17/react")
+#prompt_react = hub.pull("hwchase17/react")
+prompt_react = PromptTemplate(
+    input_variables=["tools", "tool_names", "input", "agent_scratchpad"],
+    template="""Answer the following questions as best you can. You have access to the following tools:
+
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Begin!
+
+Question: {input}
+{agent_scratchpad}"""
+)
+
 memory_react = ConversationBufferMemory(memory_key="chat_history")
 agent_react_chat = create_react_agent(llm, tools, prompt_react)
 agent_executor_react_chat = AgentExecutor(agent=agent_react_chat,
