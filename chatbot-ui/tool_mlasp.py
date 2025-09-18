@@ -1,38 +1,21 @@
-from pydantic.v1 import BaseModel, Field
-from tools_input_schema import ToolsInputSchema
-from langchain.tools import Tool
-from typing import List
+from typing import List, Dict
 import json
 import os
 import random
 import requests
 import joblib
+import logging
 import numpy as np
-from pydantic import BaseModel, Field
-
 
 # ### For the POC we simplify and only expect the search target, epoch and precision values as input.
 # ### The search space shall be hardcoded in the request alongside with the mlasp-ml endpoint.
 
-class Parameter(BaseModel):
-    parameter_name: str = Field(description="The name of the parameter")
-    parameter_value: float = Field(description="The value of the parameter")
-
-
-class ConfigSetup(BaseModel):
-    parameter_combinations: List[Parameter] = Field(description="List of valid parameter values meeting the desired target specifications")
-    deviation: float = Field(description="The percentage deviation of the prediction from the desired target value")
-    prediction: float = Field(description="The prediction value for the resulting parameter list")
-
-
-# ml_service_endpoint = os.environ['ML_SERVICE_ENDPOINT']
-# ml_service_endpoint = "https://mlasp-mlasp-datascience.apps.cluster-2wpfp.2wpfp.sandbox2233.opentlc.com/v2/models/mlasp/infer"
 ml_service_endpoint = os.getenv("ML_SERVICE_ENDPOINT", "https://mlasp-mlasp-datascience.apps.cluster-2wpfp.2wpfp.sandbox2233.opentlc.com/v2/models/mlasp/infer")
 feature_scaler = joblib.load('standard_scaler.pkl')
 target_scaler = joblib.load('target_scaler.pkl')
 
 
-def generateInputSequence(featSpace, exceptionList=None):
+def generateInputSequence(featSpace: dict, exceptionList=None) -> List:
     """ 
     Iterates through the feature space dictionary and randomly selects a viable value to be added to the test feature
      object for each key in the dictionary.
@@ -69,7 +52,7 @@ def generateInputSequence(featSpace, exceptionList=None):
     return result
 
 
-def generatePrediction(params):
+def generatePrediction(params: List) -> List:
     """
     Generate a prediction using the remote service endpoint. Uses a globally defined target service endpoint (loaded from the OS environment)
     Parameters:
@@ -117,13 +100,17 @@ def generatePrediction(params):
     return y_pred
 
 
-def generateParameterCombinations(featureSpace, exceptionList, epochs, precision, searchTarget):
+def generateParameterCombinations(featureSpace: List,
+                                  exceptionList: List,
+                                  epochs: int,
+                                  precision: float,
+                                  searchTarget: float) -> Dict:
     """
     Searches for valid parameter combinations for a model within a given feature space, using a desired precision from
     the target prediction. The search is executed for a number of epochs.
     This is the entry level function that gets a full dictionary of possible parameter options that yield the search
     target (throughput).
-    
+
     Parameters:
         featureSpace(dict): A dictionary defining the space of features of the model. The keys are the feature names and
          the values are applicable for the features. For a range, the values must be integers.
@@ -136,7 +123,7 @@ def generateParameterCombinations(featureSpace, exceptionList, epochs, precision
         precision(float): The precision (absolute deviation percentage) of the predicted target from the search target.
         searchTarget(int): The desired prediction value of the model for which a set of features are searched.
          It can also be a floating point number.
-        
+
     Returns:
         parameters(dict): A dictionary containing lists of values for eligible parameters falling within the search
          patterns, their associated predictions and deviation measurements.
@@ -154,8 +141,6 @@ def generateParameterCombinations(featureSpace, exceptionList, epochs, precision
     deviation = [0]
     predictions = [0]
 
-    # print(f'Generating {epochs} sequences...\n')
-
     for i in range(epochs):
         inputSequence = generateInputSequence(featureSpace, exceptionList)
         y_pred = generatePrediction(inputSequence)
@@ -170,11 +155,10 @@ def generateParameterCombinations(featureSpace, exceptionList, epochs, precision
     deviation = deviation[1:]
     predictions = predictions[1:]
     results = {'parameters': parameters, 'deviation': deviation, 'predictions': predictions}
-    # print(f'Done... Results are: {results} \n')
     return results
 
 
-def extractBestParameterCombination(parameterCombinations):
+def extractBestParameterCombination(parameterCombinations: Dict) -> Dict:
     """
     Extracts the feature set from the input parameterCombinations dictionary created by the 'generateParameterCombinations'
      function closest to the search target (smallest deviation).
@@ -230,7 +214,7 @@ def num(s):
         return float(s)
 
 
-def extractFeatureSpace(content):
+def extractFeatureSpace(content: Dict) -> Dict:
     features = {'asyncResp': list(map(num, content['asyncResp'].split(','))),
                 'asyncRespThreads': list(map(num, content['asyncRespThreads'].split(','))),
                 'cThreads': list(map(num, content['cThreads'].split(','))),
@@ -243,7 +227,7 @@ def extractFeatureSpace(content):
     return features
 
 
-def extractExceptionList(features):
+def extractExceptionList(features: Dict) -> List:
     exceptionList = []
     keys = list(features)
     keys_len = len(features.keys())
@@ -273,16 +257,33 @@ def extractSearchTarget(content):
     return searchTarget
 
 
-def tool_mlasp_predict(input_parameters: str) -> ConfigSetup:
-    parameter_list: List[Parameter] = []
-    deviation: float = 100.0
-    prediction: float = 0.0
+def tool_wiremock_configuration_predictor(epochs: int,
+                       KPI_value: float,
+                       precision: float
+                       ) -> Dict:
+    """
+    Generates a set of parameter configuration to support a desired KPI value within a given precision boundary. Searches for the parameter configurations a given number of epochs.
 
-    input_params = json.loads(input_parameters)
-    epochs = input_params['epochs']
-    search_target_value = input_params['KPI_value']
-    precision = input_params['precision']
+    Args:
+        epochs (int): The epoch number to search for the configuration set
+        KPI_value (float): The desired KPI value the set of configuration parameters should deliver.
+        precision (float): The precision boundary for accepted predictions of a configuration set.
 
+    Returns:
+        dict: {
+            "Parameters": [
+                {
+                    "parameter_name": str,
+                    "parameter_value": float
+                }
+            ],
+            "deviation": float,
+            "precision": float
+        }
+    """
+    search_target_value = KPI_value
+
+    # We hardcoded the content search space to simplify things for the demo
     content = {}
     content['FeatureList'] = "asyncResp, asyncRespThreads, cThreads, jacptQSize, jacptThreads, ltTargetSize, numConnections, timeoutSeconds"
     content['asyncResp'] = "0, 1"
@@ -305,34 +306,12 @@ def tool_mlasp_predict(input_parameters: str) -> ConfigSetup:
 
     parameterCombinations = generateParameterCombinations(featureSpace, exceptionList, epochs, precision, searchTarget)
     bestParamCombination = extractBestParameterCombination(parameterCombinations)
-
+    """
     for key in bestParamCombination['Parameters'].keys():
         parameter = Parameter(parameter_name=key, parameter_value=bestParamCombination['Parameters'][key])
         parameter_list.append(parameter)
     deviation = bestParamCombination['Deviation']
     prediction = bestParamCombination['Prediction']
-
-    # return bestParamCombination
-    return ConfigSetup(parameter_combinations=parameter_list, deviation=deviation, prediction=prediction)
-
-
-tool_mlasp_predict_description = """
-Generates a set of parameter configuration to support a desired KPI value within a given precision boundary. Searches for the parameter configurations a given number of epochs.
-
-:param epochs: The epoch number to search for the configuration set
-:param KPI_value: The desired KPI value the set of configuration parameters should deliver.
-:param precision: The precision boundary for accepted predictions of a configuration set.
-
-:return: An object containing a list of parameter names and associated values alongside the prediction and precision values of the configuration set.
-"""
-
-
-# Create a tool for the agent
-tool_mlasp_config = Tool(
-    name="MLASP_generate_config",
-    func=tool_mlasp_predict,
-    description=tool_mlasp_predict_description,
-    args_schema=ToolsInputSchema,
-    handle_tool_error=True,
-    handle_validation_error=True,
-)
+    """
+    # return ConfigSetup(parameter_combinations=parameter_list, deviation=deviation, prediction=prediction)
+    return bestParamCombination

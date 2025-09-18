@@ -1,7 +1,5 @@
 from langchain.tools.retriever import create_retriever_tool
-# from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
-# from langchain_community.vectorstores import Milvus
 from langchain_milvus import Milvus
 import os
 
@@ -23,7 +21,7 @@ embeddings = HuggingFaceEmbeddings(
 
 store = Milvus(
     embedding_function=embeddings,
-    connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT, "user": MILVUS_USERNAME, "password": MILVUS_PASSWORD},
+    connection_args={"uri": f"http://{MILVUS_HOST}:{MILVUS_PORT}", "user": MILVUS_USERNAME, "password": MILVUS_PASSWORD},
     collection_name=MILVUS_COLLECTION,
     metadata_field="metadata",
     text_field="page_content",
@@ -38,11 +36,11 @@ retriever = store.as_retriever(
 
 
 rag_tool_description = """
-Use this tool when searching for information about Red Hat OpenShift AI
+Use this tool when searching for documentation information about Red Hat OpenShift AI
 """
 
 
-tool_retriever = create_retriever_tool(retriever, "RAG_tool", rag_tool_description)
+tool_retriever = create_retriever_tool(retriever, "openshift_ai_documentation_search_tool", rag_tool_description)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 

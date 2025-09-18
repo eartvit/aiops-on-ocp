@@ -30,7 +30,7 @@ spec:
               memory: 2Gi
           readinessProbe:
             httpGet:
-              path: /queue/status
+              path: /
               port: http
               scheme: HTTP
             timeoutSeconds: 5
@@ -41,7 +41,7 @@ spec:
           name: server
           livenessProbe:
             httpGet:
-              path: /queue/status
+              path: /
               port: http
               scheme: HTTP
             timeoutSeconds: 8
@@ -49,24 +49,18 @@ spec:
             successThreshold: 1
             failureThreshold: 3
           env:
-            - name: ENABLE_SELF_SIGNED_CERTS
-              value: "True"
             - name: APP_TITLE
               value: "AIOps Chat!"
             - name: SHOW_TITLE_IMAGE
               value: "True"
-            - name: INFERENCE_SERVER_URL
-              value: "https://your_inference_endpoint"
+            - name: USE_CHATGPT
+              value: "True"
             - name: MODEL_NAME
-              value: "/mnt/models/"
-            - name: MAX_TOKENS
-              value: "1024"
-            - name: TOP_P
-              value: "0.95"
-            - name: TEMPERATURE
-              value: "0.01"
-            - name: PRESENCE_PENALTY
-              value: "1.03"
+              value: "gpt-4-turbo"
+            - name: MODEL_API_KEY
+              value: "your_openai_api_key"
+            - name: INFERENCE_SERVER_URL
+              value: "https://your_inference_endpoint_if_not_openai"
             - name: MILVUS_HOST
               value: "your_milvus_host"
             - name: MILVUS_PORT
@@ -75,16 +69,8 @@ spec:
               value: "your_milvus_username"
             - name: MILVUS_PASSWORD
               value: "your_milvus_password"
-            - name: USE_VLLM
-              value: "False"
             - name: ML_SERVICE_ENDPOINT
               value: "your_mlasp_endpoint"
-            - name: OPENAI_API_KEY
-              value: "your_openai_api_key"
-            - name: LANGCHAIN_API_KEY
-              value: "your_langchain_api_key"
-            - name: LANGCHAIN_TRACING_V2
-              value: "True"
           securityContext:
             capabilities:
               drop:
@@ -100,7 +86,7 @@ spec:
           imagePullPolicy: IfNotPresent
           startupProbe:
             httpGet:
-              path: /queue/status
+              path: /
               port: http
               scheme: HTTP
             timeoutSeconds: 1
@@ -108,7 +94,7 @@ spec:
             successThreshold: 1
             failureThreshold: 24
           terminationMessagePolicy: File
-          image: "quay.io/avitui/aiops-chatbot:v1.0"
+          image: "quay.io/avitui/aiops-chatbot:v1.2"
       dnsPolicy: ClusterFirst
   strategy:
     type: RollingUpdate
