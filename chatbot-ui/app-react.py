@@ -111,7 +111,7 @@ def ask_llm(message, history):
 
         if "FILE" in final_response:
             print('Attempting to stream back the file')
-            plot_base64 = png_to_base64(final_response)
+            plot_base64 = png_to_base64(final_response.strip())
             final_response = f'<img src="data:image/png;base64,{plot_base64}"/>'
 
     except Exception as e:
