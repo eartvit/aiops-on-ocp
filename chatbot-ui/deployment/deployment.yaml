@@ -94,7 +94,7 @@ spec:
             successThreshold: 1
             failureThreshold: 24
           terminationMessagePolicy: File
-          image: "quay.io/avitui/aiops-chatbot:v1.2"
+          image: "quay.io/avitui/aiops-chatbot:v1.3"
       dnsPolicy: ClusterFirst
   strategy:
     type: RollingUpdate
