@@ -1,8 +1,10 @@
-from langchain.tools.retriever import create_retriever_tool
+#from langchain.tools.retriever import create_retriever_tool
+from langchain_core.tools.retriever import create_retriever_tool
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_milvus import Milvus
 import os
-
+from tqdm.auto import tqdm
 
 MILVUS_HOST = os.getenv('MILVUS_HOST', 'vectordb-milvus.milvus.svc.cluster.local')
 MILVUS_PORT = 19530
